@@ -3,23 +3,20 @@ import pandas as pd
 import os
 import io
 
-# Configuración de página
+# Configuración de página con carga rápida
 st.set_page_config(
     page_title="NUTRIBLOCK - Ganadería de Precisión",
     page_icon="🧊",
     layout="centered"
 )
 
-# Estilos CSS: Fondo Blanco, Títulos Azules y Botones fijos inferiores
+# Cargar estilos CSS estáticos (Optimizados para velocidad)
 st.markdown("""
     <style>
-    /* Fondo general Blanco */
     .stApp {
         background-color: #ffffff !important;
         padding-bottom: 90px !important;
     }
-
-    /* Notch superior del celular */
     .phone-notch {
         width: 130px;
         height: 18px;
@@ -28,13 +25,10 @@ st.markdown("""
         border-bottom-left-radius: 12px;
         border-bottom-right-radius: 12px;
     }
-
-    /* Títulos principales y encabezados de sección en Color Azul */
     h1, h2, h3, h4, .section-header {
         color: #0F2C59 !important;
         font-weight: 700 !important;
     }
-
     .section-header {
         font-size: 19px;
         margin-top: 15px;
@@ -42,15 +36,11 @@ st.markdown("""
         border-bottom: 2px solid #e2e8f0;
         padding-bottom: 4px;
     }
-
-    /* Subtexto descriptivo */
     .sub-text {
         font-size: 13px;
         color: #475569;
         margin-bottom: 12px;
     }
-
-    /* Botón de Calcular */
     .btn-calcular {
         background-color: #f59e0b;
         color: #000000;
@@ -61,8 +51,6 @@ st.markdown("""
         margin-top: 20px;
         font-size: 16px;
     }
-
-    /* Tarjeta de Costo Total en Azul */
     .card-costo-total {
         background-color: #0F2C59;
         color: #ffffff;
@@ -76,21 +64,16 @@ st.markdown("""
         margin-top: 10px;
         margin-bottom: 25px;
     }
-
-    /* Ocultar barra superior y pie de página de Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu, footer, header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
-# Control de navegación activa mediante sesión
-if 'pagina_actual' not in st.session_state:
-    st.session_state.pagina_actual = "1. Inicio"
-
-# Inicialización del catálogo de insumos en la sesión
-if 'catalogo_ingredientes' not in st.session_state:
-    st.session_state.catalogo_ingredientes = pd.DataFrame([
+# -----------------------------------------------------------------------------
+# FUNCIONES DE CACHÉ (Evita recargas lentas de la base de datos)
+# -----------------------------------------------------------------------------
+@st.cache_data
+def obtener_catalogo_base():
+    return pd.DataFrame([
         {"id": 1, "categoria": "Fuentes de calcio", "nombre": "Carbonato de Calcio", "precio_soles_kg": 2.00, "pct": 15.0},
         {"id": 2, "nombre": "Cal Agrícola", "categoria": "Fuentes de calcio", "precio_soles_kg": 1.50, "pct": 10.0},
         {"id": 3, "categoria": "Fuentes de fósforo", "nombre": "Fosfato Dicálcico", "precio_soles_kg": 4.20, "pct": 10.0},
@@ -101,10 +84,18 @@ if 'catalogo_ingredientes' not in st.session_state:
         {"id": 8, "categoria": "Endurecedores y aglutinantes", "nombre": "Urea Agrícola", "precio_soles_kg": 3.50, "pct": 15.0},
     ])
 
+# Estado de navegación
+if 'pagina_actual' not in st.session_state:
+    st.session_state.pagina_actual = "1. Inicio"
+
+# Inicialización de catálogo en la sesión
+if 'catalogo_ingredientes' not in st.session_state:
+    st.session_state.catalogo_ingredientes = obtener_catalogo_base()
+
 # Encabezado visual tipo SmartPhone
 st.markdown("<div class='phone-notch'></div>", unsafe_allow_html=True)
 
-# Cargar logo oficial
+# Cargar logo en memoria
 logo_path = "Logo_NUTRIBLOCK.jpg"
 if os.path.exists(logo_path):
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -121,13 +112,12 @@ else:
     """, unsafe_allow_html=True)
 
 # =============================================================================
-# MÓDULO 1: INICIO (Formulario e Ingreso de Datos)
+# MÓDULO 1: INICIO
 # =============================================================================
 if st.session_state.pagina_actual == "1. Inicio":
     tab_app, tab_cat, tab_info = st.tabs(["📲 Formular", "📦 Insumos", "🛡️ Alertas"])
 
     with tab_app:
-        # 1. DATOS DEL ANIMAL
         st.markdown("<div class='section-header'>1. Datos del animal</div>", unsafe_allow_html=True)
         categoria_animal = st.selectbox(
             "Categoría",
@@ -142,14 +132,12 @@ if st.session_state.pagina_actual == "1. Inicio":
 
         st.markdown("---")
 
-        # 2. CARACTERÍSTICAS DEL BLOQUE
         st.markdown("<div class='section-header'>2. Características del bloque</div>", unsafe_allow_html=True)
         peso_fabricar = st.number_input("Peso total que desea fabricar (kg)", min_value=0.1, value=50.0, step=5.0)
         num_animales = st.number_input("Número de animales en el lote (Unidades)", min_value=1, value=10, step=1)
 
         st.markdown("---")
 
-        # 3. SELECCIONAR INGREDIENTES
         st.markdown("<div class='section-header'>3. Seleccionar ingredientes</div>", unsafe_allow_html=True)
         st.markdown("<div class='sub-text'>El productor selecciona los ingredientes que consigue en su localidad.</div>", unsafe_allow_html=True)
 
@@ -178,7 +166,7 @@ if st.session_state.pagina_actual == "1. Inicio":
         st.markdown("### 📊 Resultado de la Formulación")
 
         if not ingredientes_seleccionados:
-            st.warning("⚠️ Seleccione al menos un ingrediente por categoría para realizar el cálculo.")
+            st.warning("⚠️ Seleccione al menos un ingrediente por categoría.")
         else:
             df_filtrado = df_ing[df_ing["nombre"].isin(ingredientes_seleccionados)].copy()
             suma_pct_base = df_filtrado["pct"].sum()
@@ -204,7 +192,6 @@ if st.session_state.pagina_actual == "1. Inicio":
             df_resultado = pd.DataFrame(filas)
             st.dataframe(df_resultado, use_container_width=True, hide_index=True)
 
-            # Guardar resultados en la sesión
             st.session_state['ultima_receta'] = {
                 "categoria": categoria_animal,
                 "peso_lote": peso_fabricar,
@@ -239,22 +226,19 @@ if st.session_state.pagina_actual == "1. Inicio":
 
     with tab_info:
         st.caption("Directrices de Ganadería de Precisión")
-        st.info("Un bloque nutricional mineral complementa la dieta pero no la sustituye. Verifique siempre el consumo diario del ganado y la calidad de los forrajes.")
+        st.info("Un bloque nutricional mineral complementa la dieta pero no la sustituye.")
 
 # =============================================================================
-# MÓDULO 2: MIS RECETAS (Exportación Segura)
+# MÓDULO 2: MIS RECETAS
 # =============================================================================
 elif st.session_state.pagina_actual == "2. Mis Recetas":
     st.markdown("<div class='section-header'>📂 Mis Recetas e Informes</div>", unsafe_allow_html=True)
-    st.write("Descargue la ficha técnica y la estimación de costos obtenidas en la plataforma.")
 
     if 'ultima_receta' in st.session_state:
         receta_data = st.session_state['ultima_receta']
-        
         st.success(f"Receta activa: **{receta_data['categoria']}** ({receta_data['peso_lote']} kg)")
         st.dataframe(receta_data['detalle'], use_container_width=True, hide_index=True)
         
-        # Exportación protegida contra falta de librerías
         try:
             output_excel = io.BytesIO()
             with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
@@ -262,8 +246,7 @@ elif st.session_state.pagina_actual == "2. Mis Recetas":
                     {"Parámetro": "Categoría Animal", "Valor": receta_data['categoria']},
                     {"Parámetro": "Peso Total del Lote (kg)", "Valor": receta_data['peso_lote']},
                     {"Parámetro": "Número de Animales", "Valor": receta_data['animales']},
-                    {"Parámetro": "Costo Total Estimado (S/)", "Valor": round(receta_data['costo_total'], 2)},
-                    {"Parámetro": "Costo por kg (S/ / kg)", "Valor": round(receta_data['costo_total'] / receta_data['peso_lote'], 2)}
+                    {"Parámetro": "Costo Total Estimado (S/)", "Valor": round(receta_data['costo_total'], 2)}
                 ])
                 df_resumen.to_excel(writer, sheet_name='Resumen_Lote', index=False)
                 receta_data['detalle'].to_excel(writer, sheet_name='Detalle_Ingredientes', index=False)
@@ -277,7 +260,6 @@ elif st.session_state.pagina_actual == "2. Mis Recetas":
             )
         except Exception:
             csv_data = receta_data['detalle'].to_csv(index=False).encode('utf-8')
-            st.warning("⚠️ Exportación alternativa activada (Formato CSV).")
             st.download_button(
                 label="📥 Descargar Receta en CSV",
                 data=csv_data,
@@ -285,52 +267,39 @@ elif st.session_state.pagina_actual == "2. Mis Recetas":
                 mime="text/csv"
             )
     else:
-        st.info("💡 Aún no has realizado ningún cálculo. Ve a '1. Inicio', configura tu lote y presiona calcular.")
+        st.info("💡 Aún no has realizado ningún cálculo.")
 
 # =============================================================================
 # MÓDULO 3: GUÍA NUTRIBLOCK
 # =============================================================================
 elif st.session_state.pagina_actual == "3. Guía NUTRIBLOCK":
     st.markdown("<div class='section-header'>📖 Guía Técnica de Elaboración</div>", unsafe_allow_html=True)
-    st.write("Siga estos pasos prácticos para fabricar los bloques minerales con las cantidades obtenidas.")
-
     st.markdown("""
     #### 1. Preparación y Pesado
-    * **Pesaje exacto:** Pese cada ingrediente seco (sal, carbonato, fosfato, premezcla) de acuerdo a las cantidades exactas en kilos arrojadas por la plataforma.
-    * **Premezclado en seco:** Homogenice primero todos los minerales secos en un balde o recipiente limpio durante 3 a 5 minutos.
-
+    * Pese cada ingrediente seco exacto.
+    * Homogenice primero todos los minerales secos durante 3 a 5 minutos.
     #### 2. Mezcla de Aglutinantes
-    * **Dilución de la melaza y urea:** Caliente ligeramente la melaza (si está muy densa) e incorpore gradualmente la urea asegurando su disolución completa.
-    * **Unión de fases:** Vierta la mezcla líquida sobre la harina mineral seca y amase constantemente hasta lograr una pasta húmeda y uniforme.
-
+    * Caliente la melaza e incorpore la urea.
+    * Vierta la mezcla líquida sobre la harina mineral y amase.
     #### 3. Compactación en Molde
-    * **Compactado por capas:** Coloque la mezcla dentro del molde (balde o caja de madera) en capas de 5 cm.
-    * **Presión:** Apisone fuertemente cada capa usando un pisón de madera o piedra limpia para eliminar bolsas de aire y asegurar una buena dureza final.
-
+    * Apisone fuertemente en capas de 5 cm.
     #### 4. Curado y Secado
-    * **Tiempo de secado:** Deje fraguar el bloque a la sombra en un lugar ventilado y seco durante **3 a 5 días**.
-    * **Verificación de dureza:** El bloque debe quedar lo suficientemente duro para que las vacas solo puedan consumirlo por lamedura y no a mordidas.
+    * Deje secar a la sombra durante **3 a 5 días**.
     """)
-    st.warning("⚠️ **Atención:** Si el bloque queda blando, retire del corral para evitar sobreconsumo.")
 
 # =============================================================================
-# BOTONES DE NAVEGACIÓN FIJOS EN LA PARTE INFERIOR
+# NAVEGACIÓN INFERIOR
 # =============================================================================
 st.markdown("---")
-st.markdown("### Navegación Principal")
-
 c1, c2, c3 = st.columns(3)
-
 with c1:
     if st.button("📲 Inicio", use_container_width=True):
         st.session_state.pagina_actual = "1. Inicio"
         st.rerun()
-
 with c2:
     if st.button("📂 Mis Recetas", use_container_width=True):
         st.session_state.pagina_actual = "2. Mis Recetas"
         st.rerun()
-
 with c3:
     if st.button("📖 Guía", use_container_width=True):
         st.session_state.pagina_actual = "3. Guía NUTRIBLOCK"
